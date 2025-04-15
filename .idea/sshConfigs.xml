@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SshConfigs">
+    <configs>
+      <sshConfig host="13.124.205.29" id="2b9a9bb3-6bcf-4a60-869c-1e2bbcfaf6ee" keyPath="$USER_HOME$/Downloads/Acteryx-Demo.pem" port="22" nameFormat="DESCRIPTIVE" username="ubuntu" useOpenSSHConfig="true" />
+    </configs>
+  </component>
+</project>
