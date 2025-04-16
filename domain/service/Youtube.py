@@ -2,6 +2,8 @@ import os
 import re
 import traceback
 from itertools import islice
+
+from dotenv import load_dotenv
 from fastapi.exceptions import RequestValidationError
 from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, FetchedTranscriptSnippet
 from googleapiclient.discovery import build
@@ -10,7 +12,9 @@ from youtube_transcript_api.proxies import WebshareProxyConfig
 from domain.DTO.VideoInfoDTO import VideoInfo
 from domain.service.OpenAI import create_summary
 
-API_KEY = os.environ.get("YOUTUBE_API_KEY")
+load_dotenv()
+
+API_KEY = os.getenv("YOUTUBE_API_KEY")
 youtube = build("youtube", "v3", developerKey=API_KEY)
 
 

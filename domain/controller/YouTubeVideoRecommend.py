@@ -1,20 +1,19 @@
 import json
 import os
-import re
 import time
-from pprint import pprint
+
+from dotenv import load_dotenv
 from fastapi import APIRouter, Header
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
 from starlette.responses import JSONResponse
-from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api.proxies import WebshareProxyConfig
 
 from domain.service.OpenAI import create_interest_keyword
 from domain.service.Youtube import VideoInfo, search_videos_by_keyword_list, get_video_details, get_video_description, \
     init_proxy
 
-API_KEY = os.environ.get("API_KEY")
+load_dotenv()
+API_KEY = os.getenv("API_KEY")
 router = APIRouter()
 
 

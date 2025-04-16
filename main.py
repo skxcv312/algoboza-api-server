@@ -1,10 +1,13 @@
 import os
 
 import uvicorn  # FastAPI 서버 실행에 필요
+from dotenv import load_dotenv
 from fastapi import FastAPI
 
 from domain.controller.YouTubeVideoRecommend import init_YouTubeVideoRecommend_controller
 from common.exceptionHandler.Handlers import init_exception_handler
+
+load_dotenv()
 
 SERVER_URL = os.getenv("SERVER_URL")
 
