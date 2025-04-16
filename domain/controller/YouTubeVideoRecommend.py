@@ -2,38 +2,39 @@ import json
 import os
 import time
 
-from dotenv import load_dotenv
 from fastapi import APIRouter, Header
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
 from starlette.responses import JSONResponse
 
-from domain.service.OpenAI import create_interest_keyword
-from domain.service.Youtube import VideoInfo, search_videos_by_keyword_list, get_video_details, get_video_description, \
-    init_proxy
+from domain.DTO.VideoInfoDTO import VideoInfoDTO
+from domain.service.OpenAI import OpenAIService
+from domain.service.Youtube import YoutubeService
 
-load_dotenv()
 API_KEY = os.getenv("API_KEY")
 router = APIRouter()
 
 
-def init_YouTubeVideoRecommend_controller(app):
+def init_YouTubeVideoRecommend_controller(app):  # 기본 url 설정
     app.include_router(router, prefix="/api/recommend/youtube")
 
 
-class CapWords(BaseModel):
-    interest_scores: dict[str, int] | None = None
-
-
+# api키 확인
 def auth(api: str):
     if not api == API_KEY:
         raise RequestValidationError("API_KEY is invalid")
 
 
+# 관심사 키워드 DTO
+class CapWordsDTO(BaseModel):
+    interest_scores: dict[str, int] | None = None
+
+
+# 비디오 추천 controller
 @router.post("")
-async def recommend_video_list(request: CapWords,
-                               max_search_keyword: int = 1,
-                               max_results: int = 5,
+async def recommend_video_list(request: CapWordsDTO,
+                               max_search_keyword: int = 1,  # 값이 없을 경우 기본 1
+                               max_results: int = 5,  # 값이 없을 경우 기본 5
                                api_key: str = Header(None)):
     auth(api_key)
 
@@ -44,9 +45,10 @@ async def recommend_video_list(request: CapWords,
     start_time = time.time()
 
     keyword = json.dumps(request.interest_scores)
-    interest_keyword = await create_interest_keyword(keyword, max_search_keyword)
-    # 전체 비디오
-    videos_for_keyword: list[VideoInfo] = await search_videos_by_keyword_list(interest_keyword, max_results)
+    interest_keyword = await OpenAIService.create_interest_keyword(keyword, max_search_keyword)
+    # 키워드로 검색한 VideoInfDTO 리스트
+    videos_for_keyword: list[VideoInfoDTO] = await YoutubeService.search_videos_by_keyword_list(interest_keyword,
+                                                                                                max_results)
 
     video_data = [video.model_dump() for video in videos_for_keyword]
 
@@ -65,30 +67,20 @@ async def recommend_video_list(request: CapWords,
     )
 
 
+# 비디오 요약 controller
 @router.get("/summary")
 async def video_summary(video_id: str,
-                        api_key: str = Header(None),
-                        proxy_username: str = Header(None),
-                        proxy_password: str = Header(None)
-                        ):
+                        api_key: str = Header(None)):
     auth(api_key)
-    print(f"video_id: {video_id}")
-    print(f"proxy_username: {proxy_username}")
-    print(f"proxy_password: {proxy_password}")
 
     # # 시작 시간 계산
     start_time = time.time()
-    video_info: VideoInfo = (await get_video_details([video_id])).pop()
+    video_info: VideoInfoDTO = (await YoutubeService.get_video_details([video_id])).pop()
 
     print(f"video_info: {video_info}")
 
-    # 프록시 초기화
-    ytt_api = init_proxy(proxy_username, proxy_password)
-
-    video_info.description = await get_video_description(video_info, ytt_api)
-
-    # if video_info.description is None:
-    #     video_info.description = "설명과 자막이 모두 제공되지 않았습니다."
+    # 비디오 요약 본문 얻기
+    video_info.description = await YoutubeService.get_video_description(video_info)
 
     end_time = time.time()  # 끝 시간 저장
     print(f"\n전체 실행 시간: {end_time - start_time:.2f}초")
@@ -98,7 +90,7 @@ async def video_summary(video_id: str,
         content={
             "meta": {
                 "video_id": video_id,
-                "running_time": end_time - start_time
+                "running_time": end_time - start_time  # 총 실행 시간
             },
             "data": {
                 "description": video_info.description
