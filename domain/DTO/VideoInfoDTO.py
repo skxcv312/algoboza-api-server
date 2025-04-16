@@ -2,7 +2,7 @@
 from pydantic import BaseModel
 
 
-class VideoInfo(BaseModel):
+class VideoInfoDTO(BaseModel):
     id: str | None = None
     title: str | None = None
     duration: str | None = None
