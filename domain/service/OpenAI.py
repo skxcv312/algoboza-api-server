@@ -18,19 +18,20 @@ class OpenAIService:
     @classmethod
     async def create_interest_keyword(cls, interest_scores, max_search_keyword: int = 5):
         text = interest_scores
+        prompt = f"""
+                    You will receive a JSON object of user interest keywords and their scores.
+                    Produce search terms that reflect the high interest of your users.
+                    Create search terms by grouping similar keywords together.
+                    Don't make your search terms into sentences.
+                    Do not output more than 5 items. Return only a list of search queries.
+                """
 
         response = cls.client.responses.create(
             model="gpt-4o",
             input=[
                 {
                     "role": "system",
-                    "content": f"""
-                                You will receive a JSON object of user interest keywords and their scores.
-                                Produce search terms that reflect the high interest of your users.
-                                Create search terms by grouping similar keywords together.
-                                Don't make your search terms into sentences.
-                                Do not output more than 5 items. Return only a list of search queries.
-                                """
+                    "content": prompt,
                 },
                 {
                     "role": "user",
@@ -77,24 +78,28 @@ class OpenAIService:
         if description is None or len(description) < 30:
             return "설명과 자막이 모두 제공되지 않았습니다."
         try:
+            prompt_1 = f"""
+                        The text received is the text to be summarized. 
+                        In your response, only pass the summarized text. 
+                        No other format is needed, just return text.
+                        and Do not wrap.
+                        """
+
+            prompt_2 = """
+                        No more than four sentences.
+                        If the text is not in Korean, translate it to Korean anyway.
+                        """
+
             response = cls.client.responses.create(
                 model="gpt-4o-mini",
                 input=[
                     {
                         "role": "system",
-                        "content": """
-                            The text received is the text to be summarized. 
-                            In your response, only pass the summarized text. 
-                            No other format is needed, just return text.
-                            and Do not wrap.
-                           """
+                        "content": prompt_1,
                     },
                     {
                         "role": "system",
-                        "content": """
-                                    No more than four sentences.
-                                    If the text is not in Korean, translate it to Korean anyway.
-                                   """
+                        "content": prompt_2,
                     },
                     {
                         "role": "user",

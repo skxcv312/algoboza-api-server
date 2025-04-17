@@ -11,19 +11,22 @@ from domain.DTO.VideoInfoDTO import VideoInfoDTO
 from domain.service.OpenAI import OpenAIService
 from domain.service.Youtube import YoutubeService
 
-API_KEY = os.getenv("API_KEY")
+# 과금 방지를 위해 api key를 따로 만들었으나 필요 없을듯
+
 router = APIRouter()
 
 
-def init_YouTubeVideoRecommend_controller(app):  # 기본 url 설정
-    app.include_router(router, prefix="/api/recommend/youtube")
+# main app을 라우팅
+def init_YouTubeVideoRecommend_controller(app):
+    app.include_router(router, prefix="/api/recommend/youtube")  # 기본 url 설정
 
 
 # api키 확인
-def auth(api: str):
-    if not api == API_KEY:
-        raise RequestValidationError("API_KEY is invalid")
-
+# API_KEY = os.getenv("API_KEY")
+# def auth(api: str):
+#     if not api == API_KEY:
+#         raise RequestValidationError("API_KEY is invalid")
+#
 
 # 관심사 키워드 DTO
 class CapWordsDTO(BaseModel):
@@ -36,7 +39,7 @@ async def recommend_video_list(request: CapWordsDTO,
                                max_search_keyword: int = 1,  # 값이 없을 경우 기본 1
                                max_results: int = 5,  # 값이 없을 경우 기본 5
                                api_key: str = Header(None)):
-    auth(api_key)
+    # auth(api_key)
 
     if request.interest_scores is None:
         raise RequestValidationError("interest_list is None")
@@ -71,7 +74,7 @@ async def recommend_video_list(request: CapWordsDTO,
 @router.get("/summary")
 async def video_summary(video_id: str,
                         api_key: str = Header(None)):
-    auth(api_key)
+    # auth(api_key)
 
     # # 시작 시간 계산
     start_time = time.time()
