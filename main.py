@@ -1,35 +1,22 @@
-import json
-import os
-
 import uvicorn  # FastAPI 서버 실행에 필요
-from dotenv import load_dotenv
-from fastapi import FastAPI
 from openai import OpenAI
 
+from common.config.config import *
 from domain.controller.YouTubeVideoRecommend import init_YouTubeVideoRecommend_controller
 from common.exceptionHandler.Handlers import init_exception_handler
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import httpx
-from pprint import pprint
-from typing import List, Dict, Tuple
+from typing import Tuple
 from typing import List, Dict
 
-# .env 로드
-load_dotenv()
 
 # controller에 fastAPI 할당
-
 client = OpenAI()
+
 app = FastAPI()
 init_YouTubeVideoRecommend_controller(app)
 init_exception_handler(app)
-
-# 환경 변수 할당
-NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID")
-NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET")
-NAVER_PLACE_SEARCH_URL = os.getenv("NAVER_PLACE_SEARCH_URL")
-BACKEND_URL = os.getenv("BACKEND_URL")
 
 
 class InterestScore(BaseModel):
@@ -180,4 +167,4 @@ async def naver_places_search(query: str):
 
 # 실행 진입점
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

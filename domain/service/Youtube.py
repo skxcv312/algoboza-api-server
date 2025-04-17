@@ -2,30 +2,24 @@ import os
 import re
 import traceback
 from itertools import islice
-
-from dotenv import load_dotenv
 from fastapi.exceptions import RequestValidationError
 from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound
 from googleapiclient.discovery import build
 from youtube_transcript_api.proxies import WebshareProxyConfig
 
+from common.config.config import *
 from domain.DTO.VideoInfoDTO import VideoInfoDTO
 from domain.service.OpenAI import OpenAIService
 
 
 class YoutubeService:
-    # 클래스 변수 초기화
-    API_KEY = os.getenv("YOUTUBE_API_KEY")
-    PROXY_USERNAME = os.getenv("PROXY_USERNAME")  # 프록시 설정
-    PROXY_PASSWORD = os.getenv("PROXY_PASSWORD")
-
     # 자막중에서 gpt에게 전달할 문자열 길이 변수
     START_SENTENCE = 20  # 시작 문장
     END_SENTENCE = 220  # 마지막 문장
 
     MIN_VIDEO_LENGTH = 90  # 최소 영상 길이 (sec)
 
-    youtube = build("youtube", "v3", developerKey=API_KEY)  # youtube api 설정
+    youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)  # youtube api 설정
     ytt_api = YouTubeTranscriptApi(  # youtube proxy 설정
         proxy_config=WebshareProxyConfig(
             proxy_username=PROXY_USERNAME,
