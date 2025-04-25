@@ -179,3 +179,5 @@ def analyze_intent_with_type(keywords: List[str]) -> Tuple[str, str]:
 # 실행 진입점
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+
+#HI
