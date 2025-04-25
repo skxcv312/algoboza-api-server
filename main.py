@@ -1,72 +1,135 @@
 import uvicorn  # FastAPI 서버 실행에 필요
-from openai import OpenAI
-
-from common.config.config import *
-from domain.controller.YouTubeVideoRecommend import init_YouTubeVideoRecommend_controller
-from common.exceptionHandler.Handlers import init_exception_handler
+import openai
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import httpx
-from typing import Tuple
-from typing import List, Dict
+from typing import Tuple, List, Dict
+from common.config.config import *
+from domain.controller.YouTubeVideoRecommend import init_YouTubeVideoRecommend_controller
+from common.exceptionHandler.Handlers import init_exception_handler
 
+# OpenAI API key 설정
+openai.api_key = 'your-openai-api-key'
 
-# controller에 fastAPI 할당
-client = OpenAI()
-
+# FastAPI 앱 초기화
 app = FastAPI()
 init_YouTubeVideoRecommend_controller(app)
 init_exception_handler(app)
 
-
+# 데이터 모델 정의
 class InterestScore(BaseModel):
     keyword: str
-    score: int
+    type: str  # 쇼핑 / 장소
+    options: List[str]  # 추가 정보
 
 
-class Exploration(BaseModel):
-    view: List[Dict]
-    search: List[Dict]
-    category: List[Dict]
-    purchase: List[Dict]
+class MetaData(BaseModel):
+    location: str
+    birth_date: str
+    timestamp: str
+    note: str
 
 
 class UserData(BaseModel):
     user_id: int
-    timestamp: str
-    exploration: Exploration
+    meta_data: MetaData
     interest_scores: List[InterestScore]
 
 
 @app.post("/analyze/")
 async def analyze_user_data(user_data: UserData):
-    # 관심 점수 50 이상 키워드만 사용
-    interest_keywords = [item.keyword for item in user_data.interest_scores if item.score > 50]
+    # 관심 키워드에서 옵션 필터링 및 쇼핑/장소 분석
+    naver_results = {}
+    naver_places = {}
 
-    if not interest_keywords:
-        raise HTTPException(status_code=400, detail="관심 키워드가 없습니다.")
+    for interest in user_data.interest_scores:
+        keyword = interest.keyword
+        options = interest.options
 
-    # 사용자 의도 분석 (쇼핑 or 장소 추천)
-    user_intent, intent_type = analyze_intent_with_type(interest_keywords)
+        # 사용자가 원하는 정보에 따라 쇼핑/장소 구분
+        if interest.type == "shopping":
+            # 쇼핑에 대한 검색을 진행
+            shopping_results = await naver_shopping_search(keyword, options)
+            if shopping_results:
+                naver_results[keyword] = shopping_results
+        elif interest.type == "place":
+            # 장소에 대한 검색을 진행
+            place_results = await naver_places_search(keyword, options)
+            if place_results:
+                naver_places[keyword] = place_results
 
-    # 결과 저장 변수
-    naver_results = []
-    naver_places = []
-
-    # 사용자가 쇼핑을 원하면 네이버 쇼핑 API 호출
-    if intent_type == "shopping":
-        naver_results = await naver_shopping_search(user_intent)
-
-    # 사용자가 장소 추천을 원하면 네이버 지역 검색 API 호출
-    elif intent_type == "places":
-        naver_places = await naver_places_search(user_intent)
-
+    # 결과 반환
     return {
-        "user_intent": user_intent,
-        "intent_type": intent_type,
+        "user_id": user_data.user_id,
         "naver_results": naver_results,
         "naver_places": naver_places
     }
+
+
+async def naver_shopping_search(query: str, options: List[str]):
+    """네이버 쇼핑 API 호출"""
+    url = "https://openapi.naver.com/v1/search/shop.json"
+    headers = {
+        "X-Naver-Client-Id": NAVER_CLIENT_ID,
+        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
+    }
+
+    # 옵션을 필터링해서 검색
+    query_with_options = f"{query} {' '.join(options)}"
+    params = {"query": query_with_options, "display": 4, "sort": "sim"}
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=headers, params=params)
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail="네이버 쇼핑 API 호출 실패")
+
+        data = response.json()
+        return data.get("items", [])  # 쇼핑 결과 반환
+
+
+async def naver_places_search(query: str, options: List[str]):
+    """네이버 지역 검색 API 호출"""
+    url = "https://openapi.naver.com/v1/search/local.json"
+    headers = {
+        "X-Naver-Client-Id": NAVER_CLIENT_ID,
+        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
+    }
+
+    # 옵션을 필터링해서 검색
+    query_with_options = f"{query} {' '.join(options)}"
+    params = {"query": query_with_options, "display": 4, "sort": "random"}
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=headers, params=params)
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail="네이버 지역 검색 API 호출 실패")
+
+        data = response.json()
+        places = data.get("items", [])
+
+        # 장소 정보 반환시 link가 없으면 네이버 지도 링크 추가
+        return [
+            {
+                "title": place["title"],
+                "address": place["address"],
+                "category": place["category"],
+                "link": place.get("link") or generate_naver_map_link(place)
+            }
+            for place in places
+        ]
+
+
+from urllib.parse import quote  # URL 인코딩을 위해 필요
+
+
+def generate_naver_map_link(place: Dict) -> str:
+    """장소 제목 기반 네이버 지도 검색 링크 생성"""
+    title = place.get("title", "").replace("<b>", "").replace("</b>", "").strip()
+    if not title:
+        return "https://map.naver.com/v5"
+
+    encoded_title = quote(title)  # URL 인코딩 (예: 홍대입구역 → %ED%99%8D%EB%8C%80%EC%9E%85%EA%B5%AC%EC%97%AD)
+    return f"https://map.naver.com/v5/search/{encoded_title}"
 
 
 def analyze_intent_with_type(keywords: List[str]) -> Tuple[str, str]:
@@ -85,25 +148,18 @@ def analyze_intent_with_type(keywords: List[str]) -> Tuple[str, str]:
     출력 형식:
     - 쇼핑 예시: "나이키 운동화", "shopping"
     - 장소 추천 예시: "서울 한식당", "places"
-    
-    단 이거는 예시일 뿐 따라할 필요는 없어
     """
 
-    response = client.responses.create(
-        model="gpt-3.5-turbo",
-        input=[
-            {
-                "role": "system",  # 시스템 프롬포트로 더 일관된 답변 얻을 수 잇음
-                "content": system_prompt,
-            },
-            {
-                "role": "user",
-                "content": str(', '.join(keywords))
-            }
-        ]
+    response = openai.Completion.create(
+        model="gpt-3.5-turbo",  # 사용할 모델명 설정
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": ', '.join(keywords)}
+        ],
+        max_tokens=100
     )
 
-    output_text = response.model_dump()["output"][0]["content"][0]["text"]
+    output_text = response['choices'][0]['message']['content']
     print("output_text : " + output_text)
 
     parts = output_text.rsplit(",", 1)  # 마지막 콤마 기준으로 분리
@@ -118,51 +174,6 @@ def analyze_intent_with_type(keywords: List[str]) -> Tuple[str, str]:
         intent_type = "shopping"
 
     return search_query, intent_type
-
-
-async def naver_shopping_search(query: str):
-    """네이버 쇼핑 API 호출"""
-    url = "https://openapi.naver.com/v1/search/shop.json"
-    headers = {
-        "X-Naver-Client-Id": NAVER_CLIENT_ID,
-        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
-    }
-    params = {"query": query, "display": 5, "sort": "sim"}
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, headers=headers, params=params)
-        if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail="네이버 쇼핑 API 호출 실패")
-
-        data = response.json()
-        return data.get("items", [])[:5]  # 최대 5개 반환
-
-
-async def naver_places_search(query: str):
-    """네이버 지역 검색 API 호출"""
-    headers = {
-        "X-Naver-Client-Id": NAVER_CLIENT_ID,
-        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
-    }
-    params = {"query": query, "display": 5, "sort": "random"}
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(NAVER_PLACE_SEARCH_URL, headers=headers, params=params)
-        if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail="네이버 지역 검색 API 호출 실패")
-
-        data = response.json()
-        places = data.get("items", [])
-
-        return [
-            {
-                "title": place["title"],
-                "address": place["address"],
-                "category": place["category"],
-                "link": place["link"]
-            }
-            for place in places
-        ]
 
 
 # 실행 진입점

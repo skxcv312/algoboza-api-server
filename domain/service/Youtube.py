@@ -7,7 +7,7 @@ from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound
 from googleapiclient.discovery import build
 from youtube_transcript_api.proxies import WebshareProxyConfig
 
-from common.config.config import *
+from common.config.environment import *
 from domain.DTO.VideoInfoDTO import VideoInfoDTO
 from domain.service.OpenAI import OpenAIService
 

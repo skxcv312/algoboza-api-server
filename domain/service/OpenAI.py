@@ -8,12 +8,11 @@ class OpenAIService:
     @staticmethod
     def print_total_tokens(msg=None, response=None):
         users = response.model_dump().get("usage")
-        print(f"{msg} \t total_token : {users.get('total_tokens')}")
+        print(f"{msg} -> total_token : {users.get('total_tokens')}")
 
     # 관심사 추출
     @classmethod
     async def create_interest_keyword(cls, interest_scores, max_search_keyword: int = 5):
-        text = interest_scores
         prompt = f"""
                     You will receive a JSON object of user interest keywords and their scores.
                     Produce search terms that reflect the high interest of your users.
@@ -21,6 +20,7 @@ class OpenAIService:
                     Don't make your search terms into sentences.
                     Do not output more than 5 items. Return only a list of search queries.
                 """
+        text = interest_scores
 
         response = cls.client.responses.create(
             model="gpt-4o",
