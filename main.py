@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import httpx
 from typing import Tuple, List, Dict
-from common.config.config import *
+from common.config.environment import *
 from domain.controller.YouTubeVideoRecommend import init_YouTubeVideoRecommend_controller
 from common.exceptionHandler.Handlers import init_exception_handler
 
