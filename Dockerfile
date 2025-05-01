@@ -1,33 +1,34 @@
-# Python 3.12 slim 이미지 기반
 FROM python:3.12-slim
 
-# 시스템 패키지 설치 (예: gcc, libffi 등 필요 시)
+# 필수 패키지 설치 및 uv 설치
 RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    libffi-dev \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    gcc \
+    build-essential \
+    libffi-dev \
+ && curl -Ls https://astral.sh/uv/install.sh | sh \
+ && apt-get purge -y curl \
+ && apt-get autoremove -y \
+ && rm -rf /var/lib/apt/lists/*
 
-# 작업 디렉토리 설정
+# 작업 디렉토리
 WORKDIR /app
 
-# uv 설치
-RUN curl -Ls https://astral.sh/uv/install.sh | sh
+# uv와 .venv 경로를 모두 PATH에 등록
+ENV PATH="/root/.local/bin:/app/.venv/bin:$PATH"
 
-# uv 명령어를 PATH에 추가
-ENV PATH="/root/.local/bin:$PATH"
-
-# pyproject.toml, uv.lock 복사 후 의존성 설치
+# 의존성 파일 복사
 COPY pyproject.toml .
 COPY uv.lock .
+
+# Docker 내부에서 .venv 생성 및 의존성 설치
 RUN uv sync --frozen
 
-# 앱 소스 복사
+# 소스 복사
 COPY . .
 
 # 포트 노출
 EXPOSE 8000
 
-# FastAPI 앱 실행 명령어
+# FastAPI 실행
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
