@@ -87,7 +87,7 @@ class OpenAIService:
                         """
 
             response = cls.client.responses.create(
-                model="gpt-4o-mini",
+                model="gpt-4.1-nano",
                 input=[
                     {
                         "role": "system",
@@ -102,8 +102,8 @@ class OpenAIService:
                         "content": description,
                     }
                 ],
-                temperature=0.7,
-                max_output_tokens=300,
+                temperature=1,
+                max_output_tokens=400,
                 top_p=1,
                 store=True
             )
