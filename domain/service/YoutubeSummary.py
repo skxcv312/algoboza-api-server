@@ -2,7 +2,7 @@ import json
 from openai import OpenAI
 
 
-class OpenAIService:
+class YoutubeSummary:
     client = OpenAI()
 
     @staticmethod
@@ -23,7 +23,7 @@ class OpenAIService:
         text = interest_scores
 
         response = cls.client.responses.create(
-            model="gpt-4o",
+            model="gpt-4.1",
             input=[
                 {
                     "role": "system",
@@ -63,7 +63,7 @@ class OpenAIService:
             top_p=1,
             store=True
         )
-        cls.print_total_tokens("키워드", response)
+        cls.print_total_tokens("유튜브 검색 키워드", response)
         keyword = json.loads(response.model_dump()["output"][0]["content"][0]["text"])
         # print(keyword)
         return keyword.get("keywords")[:max_search_keyword]

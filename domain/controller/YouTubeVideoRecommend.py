@@ -8,8 +8,8 @@ from pydantic import BaseModel
 from starlette.responses import JSONResponse
 
 from domain.DTO.VideoInfoDTO import VideoInfoDTO
-from domain.service.OpenAI import OpenAIService
-from domain.service.Youtube import YoutubeService
+from domain.service.YoutubeSummary import YoutubeSummary
+from domain.service.YoutubeRecommend import YoutubeRecommend
 
 # 과금 방지를 위해 api key를 따로 만들었으나 필요 없을듯
 
@@ -48,10 +48,10 @@ async def recommend_video_list(request: CapWordsDTO,
     start_time = time.time()
 
     keyword = json.dumps(request.interest_scores)
-    interest_keyword = await OpenAIService.create_interest_keyword(keyword, max_search_keyword)
+    interest_keyword = await YoutubeSummary.create_interest_keyword(keyword, max_search_keyword)
     # 키워드로 검색한 VideoInfDTO 리스트
-    videos_for_keyword: list[VideoInfoDTO] = await YoutubeService.search_videos_by_keyword_list(interest_keyword,
-                                                                                                max_results)
+    videos_for_keyword: list[VideoInfoDTO] = await YoutubeRecommend.search_videos_by_keyword_list(interest_keyword,
+                                                                                                  max_results)
 
     video_data = [video.model_dump() for video in videos_for_keyword]
 
@@ -78,12 +78,12 @@ async def video_summary(video_id: str,
 
     # # 시작 시간 계산
     start_time = time.time()
-    video_info: VideoInfoDTO = (await YoutubeService.get_video_details([video_id])).pop()
+    video_info: VideoInfoDTO = (await YoutubeRecommend.get_video_details([video_id])).pop()
 
     print(f"video_info: {video_info}")
 
     # 비디오 요약 본문 얻기
-    video_info.description = await YoutubeService.get_video_description(video_info)
+    video_info.description = await YoutubeRecommend.get_video_description(video_info)
 
     end_time = time.time()  # 끝 시간 저장
     print(f"\n전체 실행 시간: {end_time - start_time:.2f}초")

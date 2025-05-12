@@ -9,10 +9,10 @@ from youtube_transcript_api.proxies import WebshareProxyConfig
 
 from common.config.environment import *
 from domain.DTO.VideoInfoDTO import VideoInfoDTO
-from domain.service.OpenAI import OpenAIService
+from domain.service.YoutubeSummary import YoutubeSummary
 
 
-class YoutubeService:
+class YoutubeRecommend:
     # 자막중에서 gpt에게 전달할 문자열 길이 변수
     START_SENTENCE = 20  # 시작 문장
     END_SENTENCE = 220  # 마지막 문장
@@ -95,9 +95,9 @@ class YoutubeService:
         subtitles = await cls.get_video_subtitles(video_details)  # 자막 추출
 
         if not subtitles or subtitles.strip() == "":  # 자막이 없으면 설명란으로 대체
-            return await OpenAIService.create_summary(description)  # 자막 요약
+            return await YoutubeSummary.create_summary(description)  # 자막 요약
         else:
-            return await OpenAIService.create_summary(subtitles)  # 설명란 요약
+            return await YoutubeSummary.create_summary(subtitles)  # 설명란 요약
 
     # 유튜브 상세 정보 추출
     @classmethod
