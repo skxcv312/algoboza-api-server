@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import httpx
 from typing import Tuple, List, Dict
 from common.config.environment import *
+from domain.controller.KeywordProcessing import init_KeywordProcessing_controller
 from domain.controller.YouTubeVideoRecommend import init_YouTubeVideoRecommend_controller
 from common.exceptionHandler.Handlers import init_exception_handler
 
@@ -15,6 +16,8 @@ openai.api_key = 'your-openai-api-key'
 app = FastAPI()
 init_YouTubeVideoRecommend_controller(app)
 init_exception_handler(app)
+init_KeywordProcessing_controller(app)
+
 
 # 데이터 모델 정의
 class InterestScore(BaseModel):
@@ -36,7 +39,7 @@ class UserData(BaseModel):
     interest_scores: List[InterestScore]
 
 
-@app.post("/analyze/")
+@app.post("/analyze")
 async def analyze_user_data(user_data: UserData):
     # 관심 키워드에서 옵션 필터링 및 쇼핑/장소 분석
     naver_results = {}
@@ -180,4 +183,4 @@ def analyze_intent_with_type(keywords: List[str]) -> Tuple[str, str]:
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
 
-#TEST
+# TEST
