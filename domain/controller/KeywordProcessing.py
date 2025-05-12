@@ -15,7 +15,7 @@ def init_KeywordProcessing_controller(app):
 
 
 @router.post("")
-async def keyword_combinations(request: List[KeywordDTO]):
+async def keyword_combinations(request: List[str]):
     data = await MargeKeywords.get_keywords(request)
 
     return JSONResponse(

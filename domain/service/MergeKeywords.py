@@ -16,12 +16,12 @@ class MargeKeywords:
         print(f"{msg} -> total_token : {users.get('total_tokens')}")
 
     @classmethod
-    async def get_keywords(cls, keywords: List[KeywordDTO]):
+    async def get_keywords(cls, keywords: List[str]):
         print(keywords)
 
         prompt = """
 Objective:  
-- Receive a list of keywords of interest in JSON format.  
+- Keywords input in a list format
 
 Instructions:  
 1. Group similar keywords (both English and Korean).  
@@ -40,7 +40,7 @@ Requirements:
 - Always output in Korean.
                 """
         # DTO 리스트를 JSON 문자열로 변환
-        text = json.dumps([keyword.__dict__ for keyword in keywords], ensure_ascii=False)
+        text = keywords.__str__()
         response = cls.client.responses.create(
             model="gpt-4.1",
             input=[
