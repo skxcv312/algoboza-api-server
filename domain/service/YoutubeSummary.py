@@ -87,7 +87,7 @@ class YoutubeSummary:
                         """
 
             response = cls.client.responses.create(
-                model="gpt-4.1-nano",
+                model="gpt-4.1-mini-2025-04-14",
                 input=[
                     {
                         "role": "system",
