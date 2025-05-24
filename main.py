@@ -1,3 +1,7 @@
+import random
+from pprint import pprint
+import asyncio
+
 import uvicorn  # FastAPI 서버 실행에 필요
 import openai
 from fastapi import FastAPI, HTTPException
@@ -42,26 +46,47 @@ class UserData(BaseModel):
 @app.post("/analyze")
 async def analyze_user_data(user_data: UserData):
     # 관심 키워드에서 옵션 필터링 및 쇼핑/장소 분석
+    print("/analyze")
+    pprint(user_data)
+
     naver_results = {}
     naver_places = {}
 
-    for interest in user_data.interest_scores:
+    async def process_interest(interest: InterestScore):
         keyword = interest.keyword
         options = interest.options
 
-        # 사용자가 원하는 정보에 따라 쇼핑/장소 구분
         if interest.type == "shopping":
-            # 쇼핑에 대한 검색을 진행
             shopping_results = await naver_shopping_search(keyword, options)
             if shopping_results:
-                naver_results[keyword] = shopping_results
+                seen_titles = set()
+                deduplicated = []
+                for item in shopping_results:
+                    title = item.get("title", "")
+                    if title not in seen_titles:
+                        seen_titles.add(title)
+                        deduplicated.append(item)
+                return "shopping", keyword, deduplicated
+
         elif interest.type == "place":
-            # 장소에 대한 검색을 진행
             place_results = await naver_places_search(keyword, options)
             if place_results:
-                naver_places[keyword] = place_results
+                return "place", keyword, place_results
 
-    # 결과 반환
+        return None, None, None
+
+    tasks = [process_interest(interest) for interest in user_data.interest_scores]
+    results = await asyncio.gather(*tasks)
+
+    for result_type, keyword, data in results:
+        if result_type == "shopping":
+            naver_results[keyword] = data
+        elif result_type == "place":
+            naver_places[keyword] = data
+
+    pprint(naver_results)
+    pprint(naver_places)
+
     return {
         "user_id": user_data.user_id,
         "naver_results": naver_results,
@@ -77,17 +102,23 @@ async def naver_shopping_search(query: str, options: List[str]):
         "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
     }
 
-    # 옵션을 필터링해서 검색
-    query_with_options = f"{query} {' '.join(options)}"
-    params = {"query": query_with_options, "display": 4, "sort": "sim"}
+    results = []
+    search_targets = options if options else [""]
 
     async with httpx.AsyncClient() as client:
-        response = await client.get(url, headers=headers, params=params)
-        if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail="네이버 쇼핑 API 호출 실패")
+        for option in search_targets:
+            query_with_option = option if option else query
+            params = {"query": query_with_option, "display": 4, "sort": "sim"}
 
-        data = response.json()
-        return data.get("items", [])  # 쇼핑 결과 반환
+            response = await client.get(url, headers=headers, params=params)
+            if response.status_code != 200:
+                continue
+
+            data = response.json()
+            items = data.get("items", [])
+            results.extend(items)
+
+    return results
 
 
 async def naver_places_search(query: str, options: List[str]):
@@ -98,10 +129,13 @@ async def naver_places_search(query: str, options: List[str]):
         "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
     }
 
-    # 옵션을 필터링해서 검색
-    query_with_options = f"{query} {' '.join(options)}"
-    params = {"query": query_with_options, "display": 4, "sort": "random"}
+    # 옵션 중 하나를 랜덤으로 선택
+    random_option = random.choice(options) if options else ""
 
+    # query와 붙이기
+    query_with_random_option = f"{query} {random_option}"
+    params = {"query": query_with_random_option, "display": 4, "sort": "random"}
+    print("query_with_random_option" + query_with_random_option)
     async with httpx.AsyncClient() as client:
         response = await client.get(url, headers=headers, params=params)
         if response.status_code != 200:
@@ -116,7 +150,9 @@ async def naver_places_search(query: str, options: List[str]):
                 "title": place["title"],
                 "address": place["address"],
                 "category": place["category"],
-                "link": place.get("link") or generate_naver_map_link(place)
+                "lng": float(place['mapx']) / 1e7,
+                "lat": float(place['mapy']) / 1e7,
+                "link": generate_naver_map_link(place)
             }
             for place in places
         ]
@@ -132,7 +168,7 @@ def generate_naver_map_link(place: Dict) -> str:
         return "https://map.naver.com/v5"
 
     encoded_title = quote(title)  # URL 인코딩 (예: 홍대입구역 → %ED%99%8D%EB%8C%80%EC%9E%85%EA%B5%AC%EC%97%AD)
-    return f"https://map.naver.com/v5/search/{encoded_title}"
+    return f"https://map.naver.com/p/search/{encoded_title}"
 
 
 def analyze_intent_with_type(keywords: List[str]) -> Tuple[str, str]:
